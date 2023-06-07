@@ -2,6 +2,7 @@ package run.halo.app.security.authentication.login;
 
 import static run.halo.app.security.authentication.WebExchangeMatchers.ignoringMediaTypeAll;
 
+import com.google.common.util.concurrent.RateLimiter;
 import io.micrometer.observation.ObservationRegistry;
 import java.util.Map;
 import org.springframework.http.HttpMethod;
@@ -91,7 +92,10 @@ public class UsernamePasswordAuthenticator implements AdditionalWebFilter {
         filter.setRequiresAuthenticationMatcher(requiresMatcher);
         filter.setAuthenticationFailureHandler(new LoginFailureHandler());
         filter.setAuthenticationSuccessHandler(new LoginSuccessHandler());
-        filter.setServerAuthenticationConverter(new LoginAuthenticationConverter(cryptoService));
+
+        var rateLimiter = RateLimiter.create(0.1);
+        filter.setServerAuthenticationConverter(new LoginAuthenticationConverter(cryptoService,
+            rateLimiter));
         filter.setSecurityContextRepository(securityContextRepository);
     }
 

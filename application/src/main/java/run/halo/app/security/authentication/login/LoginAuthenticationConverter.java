@@ -3,23 +3,33 @@ package run.halo.app.security.authentication.login;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import java.util.Base64;
+import com.google.common.util.concurrent.RateLimiter;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.server.authentication.ServerFormLoginAuthenticationConverter;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
+import run.halo.app.infra.exception.RateLimitExceededException;
 
 public class LoginAuthenticationConverter extends ServerFormLoginAuthenticationConverter {
 
     private final CryptoService cryptoService;
 
-    public LoginAuthenticationConverter(CryptoService cryptoService) {
+    private final RateLimiter rateLimiter;
+
+    public LoginAuthenticationConverter(CryptoService cryptoService, RateLimiter rateLimiter) {
         this.cryptoService = cryptoService;
+        this.rateLimiter = rateLimiter;
     }
 
     @Override
     public Mono<Authentication> convert(ServerWebExchange exchange) {
+
+        if (!rateLimiter.tryAcquire()) {
+            return Mono.error(new RateLimitExceededException("Rate limit exceeded."));
+        }
+
         return super.convert(exchange)
             // validate the password
             .flatMap(token -> {
